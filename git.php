@@ -12,6 +12,7 @@ abstract class GitBase {
     private $dir=false;
     protected $branch;
     protected $refs;
+    private $cache_obj;
     private  $index=array();
 
     final protected function Exception($str) {
@@ -66,14 +67,16 @@ abstract class GitBase {
     }
 
     final function getObject($id) {
+        if (isset($this->cache_obj[$id])) 
+            return $this->cache_obj[$id];
         $name = substr($id,0,2)."/".substr($id,2);
         if (($content = $this->getFileContents("objects/$name")) !== false) {
             /* the object is in loose format, less work for us */
-            return gzinflate(substr($content,2));
+            return $this->cache_obj[$id] = $gzinflate(substr($content,2));
         } else {
             $obj = $this->getPackedObject($id);
             if ($obj !== false) {
-                return $obj[1];
+                return $this->cache_obj[$id] = $obj[1];
             }
         }
         $this->Exception("object not found $id");
@@ -324,6 +327,7 @@ abstract class GitBase {
 }
 
 class Git extends GitBase {
+    private $cache;
     function __construct($path='') {
         if ($path=='') continue;
         $this->setRepo($path);
@@ -334,6 +338,8 @@ class Git extends GitBase {
     }
 
     function getHistory($branch) {
+        if (isset($this->cache['branch'])) 
+            return $this->cache['branch'];
         if (!isset($this->branch[$branch])) {
             $this->Exception("$branch is not a valid branch");
         }
@@ -347,22 +353,53 @@ class Git extends GitBase {
             $history[$object_id]  = $commit;
             $object_id = isset($commit['parent']) ? $commit['parent'] : false;
         } while (strlen($object_id) > 0);
-        return $history;
+        return $this->cache['branch'] = $history;
     }    
 
     function getCommit($id) {
-        $commit = $this->getObject($id);
-        var_dump($commit);
+        $found = false;
+        foreach($this->getBranches() as $branch) {
+            $commits = $this->getHistory($branch);
+            foreach($commits as $commit) {
+                if (isset($commit['tree']) && $commit['tree'] == $id) {
+                    $found=true;
+                    break;
+                }
+            }
+        }
+        if (!$found) {
+            $this->Exception("$id is not a valid commit");
+        }
+
+        $data = $this->getObject($id);
+        $data_len = strlen($data);
+        $i = 0;
+        $return = array();
+        while ($i < $data_len) {
+            $pos = strpos($data, "\0", $i);
+            list($mode, $name) = explode(' ', substr($data, $i, $pos-$i), 2);
+            $mode = intval($mode,8);
+            $node = new stdClass;
+            $node->id     = $this->_sha1_to_hex(substr($data,$pos+1,20));
+            $node->name   = $name;
+            $node->is_dir = !!($mode & 040000); 
+            $return[] = $node;
+            $i = $pos + 21;
+        }
+        return $return;
     }
 }
 
 $repo = new Git("/home/crodas/projects/playground/phpserver/phplibtextcat/.git");
 //$repo = new Git("/home/crodas/projects/bigfs/.git");
 var_dump($repo->getBranches());
-//$history = $repo->getHistory('master');
-//var_dump($history);
-$level=0;
-$repo->getcommit('b22d9c85cd28af4a4c8059614521cb42d94ade49');
+$history = $repo->getHistory('master');
+var_dump($history);
+$commit = $repo->getCommit('b22d9c85cd28af4a4c8059614521cb42d94ade49');
+//$commit = $repo->getCommit('fb12298bd8eac7f368d435b1256047d09d4773ef');
+var_dump($commit);
 
+$object = $repo->getObject('d7ca87cc92e7007b831f449e0afd9ff92c33dc83');
+var_dump($object);
 
 ?>
