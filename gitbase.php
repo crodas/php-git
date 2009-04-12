@@ -176,18 +176,39 @@ abstract class GitBase
     final function getObject($id,&$type=null)
     {
         if (isset($this->_cache_obj[$id])) {
-            return $this->_cache_obj[$id];
+            $type = $this->_cache_obj[$id][0];
+            return $this->_cache_obj[$id][1];
         }
         $name = substr($id, 0, 2)."/".substr($id, 2);
         if (($content = $this->getFileContents("objects/$name")) !== false) {
             /* the object is in loose format, less work for us */
-            return $this->_cache_obj[$id] = gzinflate(substr($content, 2));
+            $content = gzinflate(substr($content, 2));
+            if (strpos($content, chr(0)) !== false) {
+                list($type, $content) = explode(chr(0), $content, 2);
+                list($type, $size)    = explode(' ', $type);
+                switch ($type) {
+                case 'blob':
+                    $type = OBJ_BLOB;
+                    break;
+                case 'tree':
+                    $type = OBJ_TREE;
+                    break;
+                case 'commit':
+                    $type = OBJ_COMMIT;
+                    break;
+                default:
+                    $this->throwException("Unknow object type $type");
+                }
+                $content = substr($content, 0, $size);
+            }
+            $this->_cache_obj[$id] = array($type, $content); 
+            return $content;
         } else {
             $obj = $this->_getPackedObject($id, $type);
             if ($obj !== false) {
-                $type = $obj[0]; 
-
-                return $this->_cache_obj[$id] = $obj[1];
+                $this->_cache_obj = $obj;
+                $type             = $obj[0]; 
+                return $obj[1];
             }
         }
         return false;

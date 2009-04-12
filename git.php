@@ -103,6 +103,9 @@ class Git extends GitBase
     function getTags()
     {
         $tags = $this->getRefInfo('refs/tags');
+        if (count($tags) == 0) {
+            return array();
+        }
         return array_combine(array_values($tags),
                 array_keys($tags));
             
@@ -141,8 +144,8 @@ class Git extends GitBase
     /**
      *  Returns a parsed object from the repo.
      *
-     *  @param  string $id    Sha1 object id.
-     *  @param  int    &$type Object type
+     *  @param string $id    Sha1 object id.
+     *  @param int    &$type Object type
      *
      *  @return mixed file content or an exception  
      */
@@ -152,8 +155,10 @@ class Git extends GitBase
         if ($obj === false) {
             $this->throwException("Object $id doesn't exists");
         }
-        if ($type == OBJ_TREE) {
+        switch ($type) {
+        case OBJ_TREE:
             $obj = $this->parseTreeObject($obj);
+            break;
         }
         return $obj;
     }
