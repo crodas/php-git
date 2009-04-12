@@ -15,7 +15,7 @@
  *  @link     http://cesar.la/git
  */
 
-require dirname(__FILE__)."/gitbase.php");
+require dirname(__FILE__)."/gitbase.php";
 
 /**
  *  Git Class
@@ -55,7 +55,9 @@ class Git extends GitBase
      */
     function getBranches()
     {
-        return array_keys($this->branch);
+        return array_combine(array_values($this->branch),
+                array_keys($this->branch));
+            
     }
     // }}}
 
@@ -90,6 +92,23 @@ class Git extends GitBase
     }    
     // }}} 
 
+    // {{{ getTags
+    /**
+     *  Get Tags
+     *
+     *  Returns the avaliable tags on a git repo.
+     *
+     *  @return array All tags avaliable
+     */
+    function getTags()
+    {
+        $tags = $this->getRefInfo('refs/tags');
+        return array_combine(array_values($tags),
+                array_keys($tags));
+            
+    }
+    // }}}
+
     // {{{ getCommit
     /**
      *  Get commit list of files.
@@ -114,26 +133,24 @@ class Git extends GitBase
             $this->throwException("$id is not a valid commit");
         }
 
-        $data     = $this->getObject($id);
-        $data_len = strlen($data);
-        $i        = 0;
-        $return   = array();
-        while ($i < $data_len) {
-            $pos = strpos($data, "\0", $i);
-
-            list($mode, $name) = explode(' ', substr($data, $i, $pos-$i), 2);
-
-            $mode         = intval($mode, 8);
-            $node         = new stdClass;
-            $node->id     = $this->sha1ToHex(substr($data, $pos+1, 20));
-            $node->name   = $name;
-            $node->is_dir = !!($mode & 040000); 
-            $return[]     = $node;
-            $i            = $pos + 21;
-        }
-        return $return;
+        return  $this->parseTreeObject($this->getObject($id));
     }
     // }}}
+
+    // {{{ getFile
+    /**
+     *
+     *
+     */
+    function getFile($id,&$type=null)
+    {
+        $obj = $this->getObject($id, $type);
+        if ($type == OBJ_TREE) {
+            $obj = $this->parseTreeObject($obj);
+        }
+        return $obj;
+    }
+    // }}} 
 
 }
 

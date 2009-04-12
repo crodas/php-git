@@ -123,26 +123,42 @@ abstract class GitBase
      */
     final private function _loadBranchesInfo()
     {
-        $branch = & $this->branch;
-        $files  = glob($this->_dir."/refs/heads/*");
+        $this->branch = $this->getRefInfo('refs/heads');
+        return count($this->branch)!=0;
+    }
+    // }}} 
+
+    // {{{ getRefInfo
+    /** 
+     *  Get Ref Information. The Ref is store as file
+     *  in folders, or it can be packed.
+     *
+     *  @param string $path Reference path.
+     *
+     *  @return array Path with commits Ids.
+     */
+    final protected function getRefInfo($path="refs/heads")
+    {
+        $files  = glob($this->_dir."/".$path."/*");
+        $branch = array(); 
         if (count($files) === 0) {
             $file       = $this->getFileContents("packed-refs");
             $this->refs = $this->simpleParsing($file, -1, ' ', false);
             foreach ($this->refs as $ref=>$sha1) {
-                if (strpos($ref, "refs/heads") === 0) {
+                if (strpos($ref, $path) === 0) {
                     $id            = substr($ref, strrpos($ref, "/")+1);
                     $branch[ $id ] = $sha1;
                 }
             }
-            return count($branch) != 0;
+            return $branch;
         }
         foreach ($files as $file) {
             $id            = substr($file, strrpos($file, "/")+1);
             $branch[ $id ] = $this->getFileContents($file, false);
         }
-        return true;
+        return $branch;
     }
-    // }}} 
+    // }}}
 
     // {{{ getObject
     /** 
@@ -152,11 +168,12 @@ abstract class GitBase
      *  an object ID (sha1) and returns its content. The object
      *  could be store in "loose" format or packed.
      *
-     *  @param string $id SHA1 Object ID.
+     *  @param string $id    SHA1 Object ID.
+     *  @param int    &$type By-reference variable which contains the object's type.
      *
      *  @return mixed Object's contents or false.
      */
-    final function getObject($id)
+    final function getObject($id,&$type=null)
     {
         if (isset($this->_cache_obj[$id])) {
             return $this->_cache_obj[$id];
@@ -164,16 +181,49 @@ abstract class GitBase
         $name = substr($id, 0, 2)."/".substr($id, 2);
         if (($content = $this->getFileContents("objects/$name")) !== false) {
             /* the object is in loose format, less work for us */
-            return $this->_cache_obj[$id] = $gzinflate(substr($content, 2));
+            return $this->_cache_obj[$id] = gzinflate(substr($content, 2));
         } else {
-            $obj = $this->_getPackedObject($id);
+            $obj  = $this->_getPackedObject($id, $type);
             if ($obj !== false) {
+                $type = $obj[0]; 
                 return $this->_cache_obj[$id] = $obj[1];
             }
         }
         return false;
     }
     // }}} 
+
+    // {{{ parseTreeObject
+    /**
+     *  Pase a Tree object
+     *
+     *  @param string &$data Object data.
+     *
+     *  @return object Object's tree
+     */
+    final protected function parseTreeObject(&$data) {
+        $data_len = strlen($data);
+        $i        = 0;
+        $return   = array();
+        while ($i < $data_len) {
+            $pos = strpos($data, "\0", $i);
+            if ($pos === false) {
+                return false;
+            }
+
+            list($mode, $name) = explode(' ', substr($data, $i, $pos-$i), 2);
+
+            $mode         = intval($mode, 8);
+            $node         = new stdClass;
+            $node->id     = $this->sha1ToHex(substr($data, $pos+1, 20));
+            $node->name   = $name;
+            $node->is_dir = !!($mode & 040000); 
+            $return[]     = $node;
+            $i            = $pos + 21;
+        }
+        return $return;
+    }
+    //}}{
 
     // {{{ sha1ToHex
     /**
@@ -285,11 +335,10 @@ abstract class GitBase
      *  Get an object from the pack.
      *
      *  @param string $id    sha1 (40bytes). object's id.
-     *  @param int    &$type By-reference variable which contains the object's type.
      *  
      *  @return mixed Objects content or false otherwise.
      */
-    final private function _getPackedObject($id, &$type=null)
+    final private function _getPackedObject($id)
     {
         /* load packages */
         foreach (glob($this->_dir."/objects/pack/*.idx") as $findex) {
@@ -391,12 +440,12 @@ abstract class GitBase
      *
      *  @param resource $fp        Filepointer
      *  @param int      $obj_start Delta start position.
-     *  @param int      $type      Delta type.
+     *  @param int      &$type     Delta type.
      *  @param int      $size      Delta size.
      *  
      *  @return mixed Object's content or an Exception
      */
-    final private function _unpackDelta($fp, $obj_start, $type, $size)
+    final private function _unpackDelta($fp, $obj_start, &$type, $size)
     {
         $delta_offset = ftell($fp);
         $sha1         = fread($fp, 20);
@@ -558,4 +607,12 @@ abstract class GitBase
 
 }
 
+/*
+ * Local variables:
+ * tab-width: 4
+ * c-basic-offset: 4
+ * End:
+ * vim600: sw=4 ts=4 fdm=marker
+ * vim<600: sw=4 ts=4
+ */
 ?>
