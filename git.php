@@ -1,7 +1,19 @@
 <?php
 /**
- * Object commit type
+ *  PHP Git
+ *
+ *  Pure-PHP class to read GIT repositories. It allows 
+ *
+ *
+ *  PHP version 5
+ *
+ *  @category VersionControl
+ *  @package  PHP-Git
+ *  @author   César D. Rodas <crodas@member.fsf.org>
+ *  @license  http://www.php.net/license/3_01.txt  PHP License 3.01
+ *  @link     http://cesar.la/git
  */
+
 define("OBJ_COMMIT", 1);
 define("OBJ_TREE", 2);
 define("OBJ_BLOB", 3);
@@ -11,6 +23,18 @@ define("OBJ_REF_DELTA", 7);
 define("GIT_INVALID_INDEX", 0x02);
 define("PACK_IDX_SIGNATURE", "\377tOc");
 
+/**
+ *  Git Base Class
+ *
+ *  This class provide a set of fundamentals functions to
+ *  manipulate (read only for now) a git repository.
+ *
+ *  @category VersionControl
+ *  @package  PHP-Git
+ *  @author   César D. Rodas <crodas@member.fsf.org>
+ *  @license  http://www.php.net/license/3_01.txt  PHP License 3.01
+ *  @link     http://cesar.la/git
+ */
 abstract class GitBase
 {
     private $_dir = false;
@@ -19,22 +43,55 @@ abstract class GitBase
     protected $branch;
     protected $refs;
 
+    // {{{ throwException
+    /**
+     *  Throw Exception 
+     *
+     *  This is the only function that throws an Exepction,
+     *  used to easy portability to PHP4.
+     *
+     *  @param string $str Description of the exception
+     *
+     *  @return class Exception
+     */
     final protected function throwException($str)
     {
         throw new Exception ($str);
     }
+    // }}}
 
-    final protected function getFileContents($name, $relative=true, $raw=false)
+    // {{{ getFileContents
+    /**
+     *  Get File contents
+     *
+     *  This function reads a file and returns its content, 
+     *
+     *  @param string $path     File path
+     *  @param bool   $relative If true, it appends the .git directory
+     *  @param bool   $raw      If true, returns as is, otherwise return trimmed
+     *
+     *  @return mixed  File contents or false if fails. 
+     */
+    final protected function getFileContents($path, $relative=true, $raw=false)
     {
         if ( $relative ) {
-            $name = $this->_dir."/".$name;
+            $path = $this->_dir."/".$path;
         }
-        if (!is_file($name)) {
+        if (!is_file($path)) {
             return false;
         }
-        return $raw ? file_get_contents($name) :  trim(file_get_contents($name));
+        return $raw ? file_get_contents($path) :  trim(file_get_contents($path));
     }
+    // }}}
 
+    // {{{ setRepo 
+    /** 
+     *  set Repository
+     *
+     *  @param string $dir Directory path
+     *
+     *  @return mixed True if sucess otherwise an Exception
+     */
     final function setRepo($dir)
     {
         if (!is_dir($dir)) {
@@ -48,10 +105,21 @@ abstract class GitBase
         }
         if (!$this->_loadBranchesInfo()) {
             $this->_dir = false;
-            $this->throwException("Imposible to load information about the branches");
+            $this->throwException("Imposible to load information about branches");
         }
+        return true;
     }
+    // }}}
 
+    // {{{ _loadBranchesInfo
+    /**
+     *  Load Branches Info
+     *
+     *  This function loads information about the avaliable
+     *  branches in the actual repository.
+     *
+     *  @return boolean True is success, otherwise false.
+     */
     final private function _loadBranchesInfo()
     {
         $branch = & $this->branch;
@@ -73,7 +141,20 @@ abstract class GitBase
         }
         return true;
     }
+    // }}} 
 
+    // {{{ getObject
+    /** 
+     *  Get Object
+     *
+     *  This function is main function of the class, it receive
+     *  an object ID (sha1) and returns its content. The object
+     *  could be store in "loose" format or packed.
+     *
+     *  @param string $id SHA1 Object ID.
+     *
+     *  @return mixed Object's contents or false.
+     */
     final function getObject($id)
     {
         if (isset($this->_cache_obj[$id])) {
@@ -89,10 +170,18 @@ abstract class GitBase
                 return $this->_cache_obj[$id] = $obj[1];
             }
         }
-        $this->throwException("object not found $id");
         return false;
     }
+    // }}} 
 
+    // {{{ sha1ToHex
+    /**
+     *  Transform a raw sha1 (20bytes) into it's hex representation
+     *
+     *  @param string $sha1 Raw sha1
+     *
+     *  @return string Hex sha1
+     */
     final protected function sha1ToHex($sha1)
     {
         $str = "";
@@ -105,13 +194,31 @@ abstract class GitBase
         }
         return $str;
     }
+    // }}}
 
+    // {{{ getNumber
+    /** 
+     *  Transform 4bytes into a bigendian number.
+     *
+     *  @param string $bytes 4 bytes.
+     *  
+     *  @return int
+     */
     final public function getNumber($bytes)
     {
         $c = unpack("N", $bytes);
         return $c[1];
     }
+    // }}}
 
+    // {{{ _getIndexInfo
+    /**
+     *  Loads the pack index file, and parse it.
+     *
+     *  @param string $path Index file path
+     *
+     *  @return mixed Index structure (array) or an exception
+     */
     final private function _getIndexInfo($path)
     {
         if (isset($this->_index[$path])) {
@@ -170,7 +277,17 @@ abstract class GitBase
         }
         return $this->_index[$path];
     }
+    // }}}
 
+    // {{{ _getPackedObject
+    /**
+     *  Get an object from the pack.
+     *
+     *  @param string $id    sha1 (40bytes). object's id.
+     *  @param int    &$type By-reference variable which contains the object's type.
+     *  
+     *  @return mixed Objects content or false otherwise.
+     */
     final private function _getPackedObject($id, &$type=null)
     {
         /* load packages */
@@ -191,7 +308,17 @@ abstract class GitBase
         }
         return false;
     }
+    // }}}
 
+    // {{{ _unpackObject 
+    /**
+     *  Unpack an file from the start bytes.
+     *
+     *  @param resource $fp    Filepointer.
+     *  @param int      $start The object start position.
+     *
+     *  @return mixed Array with type and content or an exception
+     */
     final private function _unpackObject($fp, $start)
     {
         /* offset till the start of the object */
@@ -227,7 +354,17 @@ abstract class GitBase
             $this->throwException("Unkown object type $type");
         }
     }
+    // }}}
 
+    // {{{ _unpackCompressed
+    /** 
+     *  Unpack a compressed object
+     *
+     *  @param resource $fp   Filepointer
+     *  @param int      $size Object's start position.
+     *
+     *  @return mixed Object's content or an Exception
+     */
     final private function _unpackCompressed($fp, $size)
     {
         fseek($fp, 2, SEEK_CUR);
@@ -245,7 +382,19 @@ abstract class GitBase
         }
         return $out;
     }
+    // }}}
 
+    // {{{ _unpackDelta
+    /** 
+     *  Unpack a delta file, and it's other objects and apply the patch.
+     *
+     *  @param resource $fp        Filepointer
+     *  @param int      $obj_start Delta start position.
+     *  @param int      $type      Delta type.
+     *  @param int      $size      Delta size.
+     *  
+     *  @return mixed Object's content or an Exception
+     */
     final private function _unpackDelta($fp, $obj_start, $type, $size)
     {
         $delta_offset = ftell($fp);
@@ -277,7 +426,17 @@ abstract class GitBase
 
         return $obj;
     }
+    // }}}
 
+    // {{{ patchDeltaHeaderSize
+    /**
+     *  Returns the delta's content size.
+     *
+     *  @param string &$delta Delta contents.
+     *  @param int    $pos    Delta offset position.
+     *
+     *  @return mixed Delta size and position or an Exception.
+     */
     final protected function patchDeltaHeaderSize(&$delta, $pos)
     {
         $size = $shift = 0;
@@ -291,7 +450,17 @@ abstract class GitBase
         } while (($byte & 0x80) != 0);
         return array($size, $pos);
     }
+    // }}}
 
+    // {{{ patchObject
+    /**
+     *  Apply a $base to a $delta
+     *
+     *  @param string &$base  String to apply to the delta.
+     *  @param string &$delta Delta content.
+     *
+     *  @return mixed Objects content or an Exception
+     */
     final protected function patchObject(&$base, &$delta)
     {
         list($src_size, $pos) = $this->patchDeltaHeaderSize($delta, 0);
@@ -349,7 +518,22 @@ abstract class GitBase
         }
         return $dest;
     }
+    /* }}} */
 
+    // {{{ simpleParsing
+    /**
+     *  Simple parsing
+     *
+     *  This function implements a simple parsing for configurations
+     *  and description files from git.
+     *
+     *  @param string $text   string to parse
+     *  @param int    $limit  lines to proccess.
+     *  @param string $sep    separator string.
+     *  @param bool   $findex If true the first column is the key if not is the data.
+     *  
+     *  @return Array 
+     */
     final protected function simpleParsing($text, $limit=-1, $sep=' ', $findex=true)
     {
         $return = array();
@@ -369,11 +553,31 @@ abstract class GitBase
         }
         return $return;
     }
+    // }}}
+
 }
 
+/**
+ *  Git Class
+ *
+ *  @category VersionControl
+ *  @package  PHP-Git
+ *  @author   César D. Rodas <crodas@member.fsf.org>
+ *  @license  http://www.php.net/license/3_01.txt  PHP License 3.01
+ *  @link     http://cesar.la/git
+ */
 class Git extends GitBase
 {
     private $_cache;
+
+    // {{{ __construct 
+    /**
+     *  Class constructor
+     *
+     *  @param string $path Git path repo.
+     *
+     *  @return null
+     */
     function __construct($path='')
     {
         if ($path=='') {
@@ -381,12 +585,28 @@ class Git extends GitBase
         }
         $this->setRepo($path);
     }
+    // }}}
 
+    // {{{ getBranches
+    /**
+     *  Returns all the branches
+     *
+     *  @return Array list of branches
+     */
     function getBranches()
     {
         return array_keys($this->branch);
     }
+    // }}}
 
+    // {{{ getHistory
+    /**
+     *  Returns all commit history on a given branch.
+     *
+     *  @param string $branch Branch name
+     *
+     *  @return mixed Array with commits history or exception
+     */
     function getHistory($branch)
     {
         if (isset($this->_cache['branch'])) {
@@ -408,7 +628,16 @@ class Git extends GitBase
         } while (strlen($object_id) > 0);
         return $this->_cache['branch'] = $history;
     }    
+    // }}} 
 
+    // {{{ getCommit
+    /**
+     *  Get commit list of files.
+     *
+     *  @param string $id Commit Id.
+     *
+     *  @return mixed Array with commit's files or an exception
+     */
     function getCommit($id)
     {
         $found = false;
@@ -444,6 +673,8 @@ class Git extends GitBase
         }
         return $return;
     }
+    // }}}
+
 }
 
 $repo = new Git("/home/crodas/projects/playground/phpserver/phplibtextcat/.git");
@@ -458,4 +689,12 @@ var_dump($commit);
 $object = $repo->getObject('d7ca87cc92e7007b831f449e0afd9ff92c33dc83');
 var_dump($object);
 
+/*
+ * Local variables:
+ * tab-width: 4
+ * c-basic-offset: 4
+ * End:
+ * vim600: sw=4 ts=4 fdm=marker
+ * vim<600: sw=4 ts=4
+ */
 ?>
