@@ -237,7 +237,6 @@ abstract class GitBase {
         }
         /* unpack object */
         list($type,$base) = $this->unpack_object($fp,$offset);
-        echo "$type = ".strlen($base)."\n";
         /* get compressed delta */
         fseek($fp,$delta_offset+$i,SEEK_SET);
         $delta = $this->unpack_compressed($fp,$size); 
@@ -248,21 +247,20 @@ abstract class GitBase {
         return $obj;
     }
 
-    final protected function patch_delta_header_size($delta,$pos) {
+    final protected function patch_delta_header_size(&$delta,$pos) {
         $size = $shift = 0;
         do {
-            $byte = ord($delta[$pos]);
+            $byte = ord($delta[$pos++]);
             if ($byte == null) {
                 $this->Exception("Unexpected delta's end.");
             }
-            $pos++;
             $size |= ($byte & 0x7f) << $shift;
             $shift += 7;
         } while (($byte & 0x80) != 0);
         return array($size, $pos);
     }
 
-    final protected function patch_object($base,$delta) {
+    final protected function patch_object(&$base,&$delta) {
         list($src_size,$pos) = $this->patch_delta_header_size($delta,0);
         if ($src_size != strlen($base)) {
             $this->Exception("Invalid delta data size ".$src_size." ".strlen($base));
@@ -270,7 +268,7 @@ abstract class GitBase {
         list($dst_size,$pos) = $this->patch_delta_header_size($delta,$pos);
         $dest = "";
         $delta_size = strlen($delta);
-        while ($pos <= $delta_size) {
+        while ($pos < $delta_size) {
             $byte = ord($delta[$pos++]);
             if ( ($byte&0x80) != 0 ) {
                 $pos--;
@@ -279,13 +277,13 @@ abstract class GitBase {
                 $flags = array(0x01,0x02,0x04,0x08);
                 for($i=0; $i < 4; $i++) {
                     if ( ($byte & $flags[$i]) != 0) 
-                        $cp_off |= ord($delta[$pos++]) << ($i * 8);
+                        $cp_off |= ord($delta[++$pos]) << ($i * 8);
                 }
                 /* fetch length  */
                 $flags = array(0x10,0x20,0x40);
                 for($i=0; $i < 3; $i++) {
                     if ( ($byte & $flags[$i]) != 0) {
-                        $cp_size |= ord($delta[$pos++]) << ($i * 8);
+                        $cp_size |= ord($delta[++$pos]) << ($i * 8);
                     }
                 }
                 /* default length */
@@ -293,19 +291,17 @@ abstract class GitBase {
                     $cp_size = 0x10000;
                 $part = substr($base,$cp_off,$cp_size);
                 if (strlen($part) != $cp_size) {
-                    var_dump(strlen($part),$cp_off,$cp_size);
-                    die();
+                    $this->Exception("Patching error: expecting $cp_size bytes but only got ".strlen($part));
                 }
                 $pos++;
             } else if ($byte != 0) {
                 $part = substr($delta,$pos,$byte);
                 if (strlen($part) != $byte) {
-                    var_dump(strlen($part),$cp_off,$cp_size);
-                    die("1");
-                }
+                    $this->Exception("Patching error: expecting $byte bytes but only got ".strlen($part));
+                } 
                 $pos += $byte;
             } else {
-                $this->Exception("Invalid delta data");
+                $this->Exception("Invalid delta data at position $pos");
             }
             $dest .= $part;
         }
