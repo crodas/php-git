@@ -183,9 +183,10 @@ abstract class GitBase
             /* the object is in loose format, less work for us */
             return $this->_cache_obj[$id] = gzinflate(substr($content, 2));
         } else {
-            $obj  = $this->_getPackedObject($id, $type);
+            $obj = $this->_getPackedObject($id, $type);
             if ($obj !== false) {
                 $type = $obj[0]; 
+
                 return $this->_cache_obj[$id] = $obj[1];
             }
         }
@@ -201,7 +202,8 @@ abstract class GitBase
      *
      *  @return object Object's tree
      */
-    final protected function parseTreeObject(&$data) {
+    final protected function parseTreeObject(&$data)
+    {
         $data_len = strlen($data);
         $i        = 0;
         $return   = array();
@@ -334,7 +336,7 @@ abstract class GitBase
     /**
      *  Get an object from the pack.
      *
-     *  @param string $id    sha1 (40bytes). object's id.
+     *  @param string $id sha1 (40bytes). object's id.
      *  
      *  @return mixed Objects content or false otherwise.
      */

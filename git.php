@@ -139,12 +139,19 @@ class Git extends GitBase
 
     // {{{ getFile
     /**
+     *  Returns a parsed object from the repo.
      *
+     *  @param  string $id    Sha1 object id.
+     *  @param  int    &$type Object type
      *
+     *  @return mixed file content or an exception  
      */
     function getFile($id,&$type=null)
     {
         $obj = $this->getObject($id, $type);
+        if ($obj === false) {
+            $this->throwException("Object $id doesn't exists");
+        }
         if ($type == OBJ_TREE) {
             $obj = $this->parseTreeObject($obj);
         }
