@@ -1,4 +1,7 @@
 <?php
+/**
+ * Object commit type
+ */
 define("OBJ_COMMIT", 1);
 define("OBJ_TREE", 2);
 define("OBJ_BLOB", 3);
