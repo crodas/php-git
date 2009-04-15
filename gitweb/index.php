@@ -12,8 +12,8 @@
  */
 
 
-define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
-#define("GIT_DIR", "/home/crodas/projects/git/.git");
+#define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+define("GIT_DIR", "/home/crodas/projects/git/.git");
 #define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
 
 require "phpgit/git.php";
@@ -45,7 +45,7 @@ if (isset($_GET['tag'])) {
 }
 
 if (isset($_GET['history'])) {
-    $history = $git->getHistory($_GET['history'],20);
+    $history = $git->getHistory($_GET['history'],200);
 }
 
 /* it is a branch  */
@@ -59,8 +59,8 @@ if (isset($_GET['branch'])) {
         $history = $git->getHistory('master', 1);
     }
     $commit    = $git->getCommit($history[0]["id"]);
-    $file_list =  & $commit['Tree']; 
-    unset($history);
+    $file_list = $commit['Tree']; 
+    unset($commit, $history);
 }
 
 

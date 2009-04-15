@@ -140,24 +140,35 @@ abstract class GitBase
      */
     final protected function getRefInfo($path="heads")
     {
-        $files  = glob($this->_dir."/refs/".$path."/*");
-        $branch = array(); 
-        $file   = $this->getFileContents("packed-refs");
+        $files = glob($this->_dir."/refs/".$path."/*");
+        $ref   = array(); 
+        $file  = $this->getFileContents("packed-refs");
+        // temporary variable to store name
+        $oldref = array();
+        foreach ($files as $file) {
+            $name = substr($file, strrpos($file, "/")+1);
+            $id   = $this->getFileContents($file, false);
+            if (isset($refes[$name])) {
+                continue;
+            }
+            $ref[$name]    = $id;
+            $oldref[$name] = true;
+        }
         if ($file !== false) {
             $this->refs = $this->simpleParsing($file, -1, ' ', false);
             $path       = "refs/$path";
-            foreach ($this->refs as $ref=>$sha1) {
-                if (strpos($ref, $path) === 0) {
-                    $id            = substr($ref, strrpos($ref, "/")+1);
-                    $branch[ $id ] = $sha1;
+            foreach ($this->refs as $name =>$sha1) {
+                if (strpos($name, $path) === 0) {
+                    $id = substr($name, strrpos($name, "/")+1);
+                    if (isset($refes[$id])) {
+                        continue;
+                    }
+                    $oldref[$id] = $id;
+                    $ref[$id]    = $sha1;
                 }
             }
         }
-        foreach ($files as $file) {
-            $id            = substr($file, strrpos($file, "/")+1);
-            $branch[ $id ] = $this->getFileContents($file, false);
-        }
-        return $branch;
+        return $ref;
     }
     // }}}
 
@@ -268,7 +279,7 @@ abstract class GitBase
         $commit            = $this->simpleParsing($object_text, 4);
         $commit['comment'] = trim(strstr($object_text, "\n\n")); 
 
-        $rexp = "/(.*) <?([a-z0-9\.\-]+@[a-z0-9\.\-]+)?> +([0-9]+) +(\+|\-[0-9]+)/i";
+        $rexp = "/(.*) <?([a-z0-9\+\_\.\-]+@[a-z0-9\_\.\-]+)?> +([0-9]+) +(\+|\-[0-9]+)/i";
         preg_match($rexp, $commit["author"], $data);
         if (count($data) == 5) {
             $data[3]         += (($data[4] / 100) * 3600);

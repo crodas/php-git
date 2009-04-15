@@ -55,9 +55,7 @@ class Git extends GitBase
      */
     function getBranches()
     {
-        return array_combine(array_values($this->branch),
-                array_keys($this->branch));
-            
+        return array_keys($this->branch);
     }
     // }}}
 
@@ -72,10 +70,10 @@ class Git extends GitBase
      */
     function getHistory($branch,$limit=1)
     {
-        if (!isset($this->branch[$branch])) {
+        if ($this->branch[$branch] === false) {
             $this->throwException("$branch is not a valid branch");
         }
-        
+       
         $object_id = $this->branch[$branch];
         $history   = array();
         $e         = 0;
