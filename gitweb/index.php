@@ -12,8 +12,8 @@
  */
 
 
-#define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
-define("GIT_DIR", "/home/crodas/projects/git/.git");
+define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+#define("GIT_DIR", "/home/crodas/projects/git/.git");
 #define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
 
 require "phpgit/git.php";
@@ -112,6 +112,7 @@ if (isset($history)) :
 <tr>
     <th>Author</th>
     <th>Commit ID</th>
+    <th>Comment</th>
     <th>Date</th>
 </tr>
 <?php
@@ -120,6 +121,7 @@ foreach($history as $commit):
 <tr>
     <td><?php echo $commit['author']?></td>
     <td><a href="?commit=<?php echo $commit['id']?>"><?php echo $commit['id']?></a></td>
+    <td><?php echo $commit['comment']?></td>
     <td><?php echo $commit['time']?></td>
 </tr>
 <?php

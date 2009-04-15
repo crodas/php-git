@@ -142,7 +142,6 @@ abstract class GitBase
     {
         $files = glob($this->_dir."/refs/".$path."/*");
         $ref   = array(); 
-        $file  = $this->getFileContents("packed-refs");
         // temporary variable to store name
         $oldref = array();
         foreach ($files as $file) {
@@ -154,6 +153,7 @@ abstract class GitBase
             $ref[$name]    = $id;
             $oldref[$name] = true;
         }
+        $file  = $this->getFileContents("packed-refs");
         if ($file !== false) {
             $this->refs = $this->simpleParsing($file, -1, ' ', false);
             $path       = "refs/$path";
