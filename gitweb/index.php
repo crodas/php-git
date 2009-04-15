@@ -12,9 +12,9 @@
  */
 
 
-define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
-//define("GIT_DIR", "/home/crodas/projects/git/.git");
-//define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
+#define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+define("GIT_DIR", "/home/crodas/projects/git/.git");
+#define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
 
 require "phpgit/git.php";
 
@@ -27,9 +27,8 @@ try {
 /* commit file list */
 if (isset($_GET['commit'])) {
     $commit    = $_GET['commit'];
-    //$history   = $git->getHistory('master');
-    var_dump($git->getFile($commit));
-    $file_list = $git->getCommit($history[$commit]['tree']);
+    $tree      = $git->getFile($commit); 
+    $file_list = $git->getFile($tree["tree"]); 
 } else if (isset($_GET['file'])) {
     /* it is a file */
     $object = $git->getFile($_GET['file'], $type);

@@ -44,7 +44,6 @@ abstract class GitBase
     protected $branch;
     protected $refs;
     private $_fp;
-    private $_packed;
 
     // {{{ throwException
     /**
@@ -184,8 +183,7 @@ abstract class GitBase
         $name = substr($id, 0, 2)."/".substr($id, 2);
         if (($content = $this->getFileContents("objects/$name")) !== false) {
             /* the object is in loose format, less work for us */
-            $this->_packed = false;
-            $content = gzinflate(substr($content, 2));
+            $content       = gzinflate(substr($content, 2));
             if (strpos($content, chr(0)) !== false) {
                 list($type, $content) = explode(chr(0), $content, 2);
                 list($type, $size)    = explode(' ', $type);
@@ -199,6 +197,9 @@ abstract class GitBase
                 case 'commit':
                     $type = OBJ_COMMIT;
                     break;
+                case 'tag':
+                    $type = OBJ_TAG;
+                    break;
                 default:
                     $this->throwException("Unknow object type $type");
                 }
@@ -207,7 +208,6 @@ abstract class GitBase
             $this->_cache_obj[$id] = array($type, $content); 
             return $content;
         } else {
-            $this->_packed = true;
             $obj           = $this->_getPackedObject($id, $type);
             if ($obj !== false) {
                 $this->_cache_obj = $obj;
@@ -218,6 +218,37 @@ abstract class GitBase
         return false;
     }
     // }}} 
+
+    // {{{ parseCommitObject
+    /**
+     *  ParseCommitObject
+     *
+     *  This function parse and returns information about a commit.
+     *
+     *  @param string $object_id Commit object id to parse.
+     *  @param bool   $recursive If true get also parent commits.
+     *
+     *  @return object Commit object.
+     */
+    final protected function parseCommitObject($object_id,$recursive=false) {
+        $history = array();
+        do { 
+            $object_text       = $this->getObject($object_id);
+            $commit            = $this->simpleParsing($object_text, 4);
+            $commit['comment'] = trim(strstr($object_text, "\n\n")); 
+
+            if ($recursive) {
+                $history[$object_id] = $commit;
+
+                $object_id = isset($commit['parent']) ? $commit['parent'] : false;
+            } else {
+                $history   = $commit;
+                $object_id = false;
+            }
+        } while (strlen($object_id) > 0);
+        return $history;
+    }
+    // }}}
 
     // {{{ parseTreeObject
     /**
@@ -468,15 +499,14 @@ abstract class GitBase
      */
     final private function _unpackCompressed($fp, $size)
     {
-        $packed = $this->_packed;
         $out    = "";
 
         do {
-            $cstr         = fread($fp, $packed && $size>4096 ? $size : 4096);
+            $cstr         = fread($fp, $size>4096 ? $size : 4096);
             $uncompressed = gzuncompress($cstr);
             if ($uncompressed === false) {
 
-                $this->throwException("fatal error while uncompressing ($packed) $size  bytes");
+                $this->throwException("fatal error uncompressing $packed/$size");
             } 
             $out .= $uncompressed; 
         } while (strlen($out) < $size);

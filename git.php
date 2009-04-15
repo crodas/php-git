@@ -78,16 +78,8 @@ class Git extends GitBase
             $this->throwException("$branch is not a valid branch");
         }
         $object_id = $this->branch[$branch];
+        $history   = $this->parseCommitObject($object_id, true);
 
-        $history = array();
-        do { 
-            $object_text         = $this->getObject($object_id);
-            $commit              = $this->simpleParsing($object_text, 4);
-            $commit['comment']   = trim(strstr($object_text, "\n\n")); 
-            $history[$object_id] = $commit;
-
-            $object_id = isset($commit['parent']) ? $commit['parent'] : false;
-        } while (strlen($object_id) > 0);
         return $this->_cache[$branch] = $history;
     }    
     // }}} 
@@ -161,6 +153,9 @@ class Git extends GitBase
         switch ($type) {
         case OBJ_TREE:
             $obj = $this->parseTreeObject($obj);
+            break;
+        case OBJ_COMMIT:
+            $obj = $this->parseCommitObject($id);
             break;
         }
         return $obj;
