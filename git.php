@@ -78,7 +78,10 @@ class Git extends GitBase
         $history   = array();
         $e         = 0;
         do {   
-            $commit       = $this->getObject($object_id);
+            $commit       = $this->getObject($object_id,$type);
+            if ($commit == false || $type != OBJ_COMMIT) {
+                $this->throwException("Unexpected datatype");
+            }
             $commit["id"] = $object_id; 
             $history[]    = $commit;
             if (!isset($commit["parent"]) || ++$e == $limit) {
@@ -120,8 +123,8 @@ class Git extends GitBase
      */
     function getCommit($id)
     {
-        $obj = $this->getObject($id, $type, OBJ_COMMIT);
-        if ($obj === false) {
+        $obj = $this->getObject($id,$type);
+        if ($obj === false || $type != OBJ_COMMIT) {
             $this->throwException("$id is not a valid commit");
         }
         $obj['Tree'] = $this->getObject($obj['tree']);
@@ -178,6 +181,32 @@ class Git extends GitBase
     }
     // }}} 
 
+    /// {{{ getCommitDiff
+    function getCommitDiff($id)
+    {
+        $tree  = $this->getCommit($id); 
+        $tree1 = $this->getCommit($tree["parent"]);
+
+        $new = $changed = $del = array();
+        
+        $file1 = & $tree1['Tree'];
+        foreach ($tree['Tree'] as $key => $desc) {
+            if ( isset($file1[$key]) ) {
+                if ($file1[$key]->id != $desc->id) {
+                    $changed[] = array($file1[$key]->id, $desc->id);
+                } 
+            } else {
+                    $new[] = $desc->id;
+            }
+        }
+        foreach ($file1 as $key => $desc) {
+            if (!isset($tree['Tree'][$key])) {
+                $del[] = $this->id;
+            }
+        }
+        return array($changed, $new ,$del);
+    } 
+    // }}}
 }
 
 /*
@@ -188,4 +217,5 @@ class Git extends GitBase
  * vim600: sw=4 ts=4 fdm=marker
  * vim<600: sw=4 ts=4
  */
+
 ?>

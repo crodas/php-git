@@ -37,6 +37,20 @@ if (isset($_GET['commit'])) {
     } else {
         $content = & $object;
     }
+} else if (isset($_GET['diff'])) {
+    include("phpgit/contrib/diff.php");
+    $diff    = $git->getCommitDiff($_GET['diff']);
+    $changes = $diff[0];
+    foreach($changes as $change) {
+        $obj1 = $git->getFile($change[0]);
+        $obj2 = $git->getFile($change[1]);
+        $str1 = explode("\n",$obj1);
+        $str2 = explode("\n",$obj2);
+        $diff = phpdiff($obj1,$obj2);
+        die("<pre>$diff</pre>");
+    }
+    var_dump($changes);
+    die();
 }
 
 if (isset($_GET['tag'])) {
