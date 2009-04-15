@@ -101,7 +101,7 @@ class Git extends GitBase
      */
     function getTags()
     {
-        $tags = $this->getRefInfo('refs/tags');
+        $tags = $this->getRefInfo('tags');
         if (count($tags) == 0) {
             return array();
         }

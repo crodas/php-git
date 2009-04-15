@@ -124,7 +124,7 @@ abstract class GitBase
      */
     final private function _loadBranchesInfo()
     {
-        $this->branch = $this->getRefInfo('refs/heads');
+        $this->branch = $this->getRefInfo('heads');
         return count($this->branch)!=0;
     }
     // }}} 
@@ -138,20 +138,20 @@ abstract class GitBase
      *
      *  @return array Path with commits Ids.
      */
-    final protected function getRefInfo($path="refs/heads")
+    final protected function getRefInfo($path="heads")
     {
-        $files  = glob($this->_dir."/".$path."/*");
+        $files  = glob($this->_dir."/refs/".$path."/*");
         $branch = array(); 
-        if (count($files) === 0) {
-            $file       = $this->getFileContents("packed-refs");
+        $file   = $this->getFileContents("packed-refs");
+        if ($file !== false) {
             $this->refs = $this->simpleParsing($file, -1, ' ', false);
+            $path = "refs/$path";
             foreach ($this->refs as $ref=>$sha1) {
                 if (strpos($ref, $path) === 0) {
                     $id            = substr($ref, strrpos($ref, "/")+1);
                     $branch[ $id ] = $sha1;
                 }
             }
-            return $branch;
         }
         foreach ($files as $file) {
             $id            = substr($file, strrpos($file, "/")+1);
