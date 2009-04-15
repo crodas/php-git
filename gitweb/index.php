@@ -26,9 +26,9 @@ try {
 
 /* commit file list */
 if (isset($_GET['commit'])) {
-    $commit    = $_GET['commit'];
-    $tree      = $git->getFile($commit); 
-    $file_list = $git->getFile($tree["tree"]); 
+    $commit = $_GET['commit'];
+    $commit = $git->getCommit($commit); 
+    $file_list = & $commit['Tree'];
 } else if (isset($_GET['file'])) {
     /* it is a file */
     $object = $git->getFile($_GET['file'], $type);
@@ -39,13 +39,17 @@ if (isset($_GET['commit'])) {
     }
 }
 
+if (isset($_GET['tag'])) {
+    $tag = $git->getTag($_GET['tag']);
+    $file_list = & $tag['Tree'];
+}
+
 if (isset($_GET['history'])) {
-    echo "<pre>";
-    print_r($git->getHistory($_GET['history']));
+    $history = $git->getHistory($_GET['history'],20);
 }
 
 /* it is a branch  */
-if (!isset($content) && !isset($file_list) && !isset($_GET['branch'])) {
+if (!isset($content) && !isset($history) && !isset($file_list) && !isset($_GET['branch'])) {
     $_GET['branch'] = 'master';
 }
 if (isset($_GET['branch'])) {
@@ -54,8 +58,8 @@ if (isset($_GET['branch'])) {
     } catch(Exception $e) {
         $history = $git->getHistory('master');
     }
-    $top       = current($history);
-    $file_list = $git->getCommit($top['tree']);
+    $file_list = $git->getCommitTree($history['tree']);
+    unset($history);
 }
 
 
@@ -90,7 +94,7 @@ endforeach;
 <?php 
 foreach ($git->getTags() as $id => $tag):
 ?>
-    <li><a href="?commit=<?php echo $id?>"><?php echo $tag?></a></li>
+    <li><a href="?tag=<?php echo $id?>"><?php echo $tag?></a></li>
 <?php
 endforeach;
 ?>
@@ -98,6 +102,32 @@ endforeach;
     </td>
 </tr>
 </table>
+
+
+<?php 
+if (isset($history)) :
+?>
+<table>
+<tr>
+    <th>Author</th>
+    <th>Commit ID</th>
+    <th>Date</th>
+</tr>
+<?php
+foreach($history as $commit):
+?>
+<tr>
+    <td><?php echo $commit['author']?></td>
+    <td><a href="?commit=<?php echo $commit['id']?>"><?php echo $commit['id']?></a></td>
+    <td><?php echo $commit['time']?></td>
+</tr>
+<?php
+endforeach;
+?>
+</table>
+<?php 
+endif;
+?>
 
 <?php 
 if (isset($file_list)) :
@@ -121,6 +151,8 @@ endforeach;
 <?php 
 endif;
 ?>
+
+
 <?php
 if (isset($content)) :
 ?>

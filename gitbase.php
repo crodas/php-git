@@ -174,7 +174,7 @@ abstract class GitBase
      *
      *  @return mixed Object's contents or false.
      */
-    final function getObject($id,&$type=null)
+    final function getObject($id,&$type=null,$cast=null)
     {
         if (isset($this->_cache_obj[$id])) {
             $type = $this->_cache_obj[$id][0];
@@ -205,17 +205,50 @@ abstract class GitBase
                 }
                 $content = substr($content, 0, $size);
             }
-            $this->_cache_obj[$id] = array($type, $content); 
-            return $content;
         } else {
-            $obj           = $this->_getPackedObject($id, $type);
-            if ($obj !== false) {
-                $this->_cache_obj = $obj;
-                $type             = $obj[0]; 
-                return $obj[1];
+            $obj = $this->_getPackedObject($id);
+            if ($obj === false) {
+                return false;
             }
+            $content = $obj[1];
+            $type    = $obj[0]; 
         }
-        return false;
+        
+
+        if ($cast != null) {
+            $ttype = $cast;
+        } else {
+            $ttype = $type;
+        }
+
+        switch($ttype) {
+        case OBJ_TREE:
+            $obj = $this->parseTreeObject($content);
+            break;
+        case OBJ_COMMIT:
+            $obj = $this->parseCommitObject($content);
+            break;
+        case OBJ_TAG:
+            $obj            = $this->simpleParsing($content, 4);
+            $obj['comment'] = trim(strstr($content, "\n\n")); 
+            if (!isset($obj['object'])) {
+                $this->throwExecption("Internal error, expected object");
+            }
+            $commit = $this->getObject($obj['object'],$c_type); 
+            if ($c_type != OBJ_COMMIT) {
+                $this->throwException("Unexpected object type");
+            }
+            $obj['Tree'] = $this->getObject($commit['tree']);
+            break;
+        case OBJ_BLOB:
+            $obj = & $content;
+            break;
+        default:
+            $this->throwException("Invalid type. Unknown $ttype.");
+            return false;
+        }
+        $this->_cache_obj[$id] = array($type, $obj); 
+        return $obj;
     }
     // }}} 
 
@@ -226,27 +259,22 @@ abstract class GitBase
      *  This function parse and returns information about a commit.
      *
      *  @param string $object_id Commit object id to parse.
-     *  @param bool   $recursive If true get also parent commits.
      *
      *  @return object Commit object.
      */
-    final protected function parseCommitObject($object_id,$recursive=false) {
-        $history = array();
-        do { 
-            $object_text       = $this->getObject($object_id);
-            $commit            = $this->simpleParsing($object_text, 4);
-            $commit['comment'] = trim(strstr($object_text, "\n\n")); 
+    final protected function parseCommitObject($object_text) {
+        $commit            = $this->simpleParsing($object_text, 4);
+        $commit['comment'] = trim(strstr($object_text, "\n\n")); 
 
-            if ($recursive) {
-                $history[$object_id] = $commit;
+        preg_match("/(.*) <?([a-z0-9\.\-]+@[a-z0-9\.\-]+)?> +([0-9]+) +(\+|\-[0-9]+)/i", $commit["author"],$data);
+        if (count($data) == 5) {
+            $data[3] += (($data[4] / 100) * 3600);
 
-                $object_id = isset($commit['parent']) ? $commit['parent'] : false;
-            } else {
-                $history   = $commit;
-                $object_id = false;
-            }
-        } while (strlen($object_id) > 0);
-        return $history;
+            $commit['author'] = $data[1];
+            $commit['email']  = $data[2];
+            $commit['time']   = gmdate("d/m/Y H:i:s",$data[3]);
+        }
+        return $commit;
     }
     // }}}
 

@@ -69,18 +69,25 @@ class Git extends GitBase
      *
      *  @return mixed Array with commits history or exception
      */
-    function getHistory($branch)
+    function getHistory($branch,$limit=1)
     {
-        if (isset($this->_cache[$branch])) {
-            return $this->_cache[$branch];
-        }
         if (!isset($this->branch[$branch])) {
             $this->throwException("$branch is not a valid branch");
         }
+        
         $object_id = $this->branch[$branch];
-        $history   = $this->parseCommitObject($object_id, true);
-
-        return $this->_cache[$branch] = $history;
+        $history   = array();
+        $e         = 0;
+        do {   
+            $commit       = $this->getObject($object_id);
+            $commit["id"] = $object_id; 
+            $history[]    = $commit;
+            if (!isset($commit["parent"]) || ++$e == $limit) {
+                break;
+            }
+            $object_id = $commit["parent"];
+        } while (1);
+        return $history;
     }    
     // }}} 
 
@@ -114,23 +121,31 @@ class Git extends GitBase
      */
     function getCommit($id)
     {
-        $found = false;
-        foreach ($this->getBranches() as $branch) {
-            $commits = $this->getHistory($branch);
-            foreach ($commits as $commit) {
-                if (isset($commit['tree']) && $commit['tree'] == $id) {
-                    $found = true;
-                    break;
-                }
-            }
-        }
-        if (!$found) {
+        $obj = $this->getObject($id, $type,OBJ_COMMIT);
+        if ($obj === false) {
             $this->throwException("$id is not a valid commit");
         }
-
-        return  $this->parseTreeObject($this->getObject($id));
+        $obj['Tree'] = $this->getCommitTree($obj['tree']);
+        return $obj;
     }
     // }}}
+
+    //{{{ getTag
+    function getTag($id) {
+        $obj = $this->getObject($id,$type);
+        if ($type != OBJ_TAG) {
+            $this->throwException("Unexpected object type.");
+        }
+        return $obj;
+    }
+    //}}}
+
+    // {{{ getCommitTree
+    function getCommitTree($id)
+    {
+        return $this->getObject($id,$type,OBJ_TREE);
+    }
+    // }}} 
 
     // {{{ getFile
     /**
@@ -143,7 +158,8 @@ class Git extends GitBase
      */
     function getFile($id,&$type=null)
     {
-        $obj = $this->getObject($id, $type);
+        $obj = $this->getObject($id,$type);
+        return $obj;
         if ($obj === false) {
             if ( sha1("blob 0".chr(0)) == $id) {
                 return "";
