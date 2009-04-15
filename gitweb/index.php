@@ -27,7 +27,8 @@ try {
 /* commit file list */
 if (isset($_GET['commit'])) {
     $commit    = $_GET['commit'];
-    $history   = $git->getHistory('master');
+    //$history   = $git->getHistory('master');
+    var_dump($git->getFile($commit));
     $file_list = $git->getCommit($history[$commit]['tree']);
 } else if (isset($_GET['file'])) {
     /* it is a file */
