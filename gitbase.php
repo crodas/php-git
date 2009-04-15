@@ -145,7 +145,7 @@ abstract class GitBase
         $file   = $this->getFileContents("packed-refs");
         if ($file !== false) {
             $this->refs = $this->simpleParsing($file, -1, ' ', false);
-            $path = "refs/$path";
+            $path       = "refs/$path";
             foreach ($this->refs as $ref=>$sha1) {
                 if (strpos($ref, $path) === 0) {
                     $id            = substr($ref, strrpos($ref, "/")+1);
@@ -171,6 +171,7 @@ abstract class GitBase
      *
      *  @param string $id    SHA1 Object ID.
      *  @param int    &$type By-reference variable which contains the object's type.
+     *  @param int    $cast  The readed object could be processed as $cast
      *
      *  @return mixed Object's contents or false.
      */
@@ -183,7 +184,7 @@ abstract class GitBase
         $name = substr($id, 0, 2)."/".substr($id, 2);
         if (($content = $this->getFileContents("objects/$name")) !== false) {
             /* the object is in loose format, less work for us */
-            $content       = gzinflate(substr($content, 2));
+            $content = gzinflate(substr($content, 2));
             if (strpos($content, chr(0)) !== false) {
                 list($type, $content) = explode(chr(0), $content, 2);
                 list($type, $size)    = explode(' ', $type);
@@ -234,7 +235,7 @@ abstract class GitBase
             if (!isset($obj['object'])) {
                 $this->throwExecption("Internal error, expected object");
             }
-            $commit = $this->getObject($obj['object'],$c_type); 
+            $commit = $this->getObject($obj['object'], $c_type); 
             if ($c_type != OBJ_COMMIT) {
                 $this->throwException("Unexpected object type");
             }
@@ -258,21 +259,22 @@ abstract class GitBase
      *
      *  This function parse and returns information about a commit.
      *
-     *  @param string $object_id Commit object id to parse.
+     *  @param string $object_text Commit object id to parse.
      *
      *  @return object Commit object.
      */
-    final protected function parseCommitObject($object_text) {
+    final protected function parseCommitObject($object_text)
+    {
         $commit            = $this->simpleParsing($object_text, 4);
         $commit['comment'] = trim(strstr($object_text, "\n\n")); 
 
-        preg_match("/(.*) <?([a-z0-9\.\-]+@[a-z0-9\.\-]+)?> +([0-9]+) +(\+|\-[0-9]+)/i", $commit["author"],$data);
+        $rexp = "/(.*) <?([a-z0-9\.\-]+@[a-z0-9\.\-]+)?> +([0-9]+) +(\+|\-[0-9]+)/i";
+        preg_match($rexp, $commit["author"], $data);
         if (count($data) == 5) {
-            $data[3] += (($data[4] / 100) * 3600);
-
+            $data[3]         += (($data[4] / 100) * 3600);
             $commit['author'] = $data[1];
             $commit['email']  = $data[2];
-            $commit['time']   = gmdate("d/m/Y H:i:s",$data[3]);
+            $commit['time']   = gmdate("d/m/Y H:i:s", $data[3]);
         }
         return $commit;
     }
@@ -527,8 +529,7 @@ abstract class GitBase
      */
     final private function _unpackCompressed($fp, $size)
     {
-        $out    = "";
-
+        $out = "";
         do {
             $cstr         = fread($fp, $size>4096 ? $size : 4096);
             $uncompressed = gzuncompress($cstr);

@@ -66,6 +66,7 @@ class Git extends GitBase
      *  Returns all commit history on a given branch.
      *
      *  @param string $branch Branch name
+     *  @param int    $limit  History limitation
      *
      *  @return mixed Array with commits history or exception
      */
@@ -121,17 +122,25 @@ class Git extends GitBase
      */
     function getCommit($id)
     {
-        $obj = $this->getObject($id, $type,OBJ_COMMIT);
+        $obj = $this->getObject($id, $type, OBJ_COMMIT);
         if ($obj === false) {
             $this->throwException("$id is not a valid commit");
         }
-        $obj['Tree'] = $this->getCommitTree($obj['tree']);
+        $obj['Tree'] = $this->getObject($obj['tree']);
         return $obj;
     }
     // }}}
 
     //{{{ getTag
-    function getTag($id) {
+    /** 
+     *  Get information about a tag.
+     *
+     *  @param string $id Tag commit id.
+     *
+     *  @return object Object.
+     */
+    function getTag($id)
+    {
         $obj = $this->getObject($id,$type);
         if ($type != OBJ_TAG) {
             $this->throwException("Unexpected object type.");
@@ -139,13 +148,6 @@ class Git extends GitBase
         return $obj;
     }
     //}}}
-
-    // {{{ getCommitTree
-    function getCommitTree($id)
-    {
-        return $this->getObject($id,$type,OBJ_TREE);
-    }
-    // }}} 
 
     // {{{ getFile
     /**

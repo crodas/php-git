@@ -54,11 +54,12 @@ if (!isset($content) && !isset($history) && !isset($file_list) && !isset($_GET['
 }
 if (isset($_GET['branch'])) {
     try {
-        $history = $git->getHistory($_GET['branch']);
+        $history = $git->getHistory($_GET['branch'], 1);
     } catch(Exception $e) {
-        $history = $git->getHistory('master');
+        $history = $git->getHistory('master', 1);
     }
-    $file_list = $git->getCommitTree($history['tree']);
+    $commit    = $git->getCommit($history[0]["id"]);
+    $file_list =  & $commit['Tree']; 
     unset($history);
 }
 
