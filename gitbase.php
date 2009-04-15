@@ -43,6 +43,8 @@ abstract class GitBase
     private $_index = array();
     protected $branch;
     protected $refs;
+    private $_fp;
+    private $_packed;
 
     // {{{ throwException
     /**
@@ -182,6 +184,7 @@ abstract class GitBase
         $name = substr($id, 0, 2)."/".substr($id, 2);
         if (($content = $this->getFileContents("objects/$name")) !== false) {
             /* the object is in loose format, less work for us */
+            $this->_packed = false;
             $content = gzinflate(substr($content, 2));
             if (strpos($content, chr(0)) !== false) {
                 list($type, $content) = explode(chr(0), $content, 2);
@@ -204,7 +207,8 @@ abstract class GitBase
             $this->_cache_obj[$id] = array($type, $content); 
             return $content;
         } else {
-            $obj = $this->_getPackedObject($id, $type);
+            $this->_packed = true;
+            $obj           = $this->_getPackedObject($id, $type);
             if ($obj !== false) {
                 $this->_cache_obj = $obj;
                 $type             = $obj[0]; 
@@ -246,7 +250,28 @@ abstract class GitBase
         }
         return $return;
     }
-    //}}{
+    //}}}
+
+    // {{{ hexToSha1
+    /**
+     *  Transform a Hex-sha1 into its binary equivalent.
+     *
+     *  @param string $sha1 sha1 string
+     *
+     *  @return string
+     */
+    final protected function hexToSha1($sha1)
+    {
+        if (strlen($sha1) != 40) {
+            return false;
+        }
+        $bin = "";
+        for ($i=0; $i < 40; $i+=2) {
+            $bin .= chr(hexdec(substr($sha1, $i, 2)));
+        }
+        return $bin;
+    }
+    // }}} 
 
     // {{{ sha1ToHex
     /**
@@ -260,8 +285,9 @@ abstract class GitBase
     {
         $str = "";
         for ($i=0; $i < 20; $i++) {
-            $hex = dechex(ord($sha1[$i]));
-            if (strlen($hex)==1) {
+            $e   = ord($sha1[$i]); 
+            $hex = dechex($e);
+            if ($e < 16) {
                 $hex = "0".$hex;
             }
             $str .= $hex;
@@ -337,7 +363,7 @@ abstract class GitBase
             $offset = $_offset;
             $keys   = $data = array();
             for ($i=0; $i < $nr;  $i++) {
-                $keys[]  = $this->sha1ToHex(substr($content, $offset, 20));
+                $keys[]  = substr($content, $offset, 20);
                 $offset += 20;
             } 
             for ($i=0; $i < $nr; $i++) {
@@ -366,15 +392,17 @@ abstract class GitBase
         /* load packages */
         foreach (glob($this->_dir."/objects/pack/*.idx") as $findex) {
             $index = $this->_getIndexInfo($findex);
+            $id    = $this->hextosha1($id);
             if (isset($index[$id])) {
                 $start = $index[$id];
                 /* open pack file */
                 $pack_file = substr($findex, 0, strlen($findex)-3)."pack";
-                $fp        = fopen($pack_file, "rb");
+                if (!isset($this->_fp[$pack_file])) {
+                    $this->_fp[$pack_file] = fopen($pack_file, "rb");
+                }
+                $fp = & $this->_fp[$pack_file];
 
                 $object =  $this->_unpackObject($fp, $start);
-
-                fclose($fp);
 
                 return $object;
             }
@@ -440,16 +468,19 @@ abstract class GitBase
      */
     final private function _unpackCompressed($fp, $size)
     {
-        fseek($fp, 2, SEEK_CUR);
-        $out ="";
+        $packed = $this->_packed;
+        $out    = "";
+
         do {
-            $cstr         = fread($fp, 4096);
-            $uncompressed = gzinflate($cstr);
+            $cstr         = fread($fp, $packed && $size>4096 ? $size : 4096);
+            $uncompressed = gzuncompress($cstr);
             if ($uncompressed === false) {
-                $this->throwException("fatal error while uncompressing");
-            }
+
+                $this->throwException("fatal error while uncompressing ($packed) $size  bytes");
+            } 
             $out .= $uncompressed; 
         } while (strlen($out) < $size);
+
         if ($size != strlen($out)) {
             $this->throwException("Weird error, the packed object has invalid size");
         }
@@ -617,7 +648,7 @@ abstract class GitBase
             }
             $info = explode($sep, $line, 2);
             if (count($info) != 2) {
-                break;
+                continue;
             }
             list($first, $second) = $info; 
 

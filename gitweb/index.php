@@ -12,7 +12,8 @@
  */
 
 
-define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+//define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+define("GIT_DIR", "/home/crodas/projects/git/.git");
 //define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
 
 require "phpgit/git.php";
@@ -36,6 +37,11 @@ if (isset($_GET['commit'])) {
     } else {
         $content = & $object;
     }
+}
+
+if (isset($_GET['history'])) {
+    echo "<pre>";
+    print_r($git->getHistory($_GET['history']));
 }
 
 /* it is a branch  */
@@ -73,7 +79,7 @@ if (isset($_GET['branch'])) {
 <?php 
 foreach ($git->getBranches() as $branch):
 ?>
-    <li><a href="?branch=<?php echo $branch?>"><?php echo $branch?></a></li>
+    <li><a href="?branch=<?php echo $branch?>"><?php echo $branch?></a> | <a href="?history=<?php echo $branch?>">history</a> </li>
 <?php
 endforeach;
 ?>
@@ -106,7 +112,7 @@ foreach($file_list as $file):
 ?>
 <tr>
     <td></td>
-    <td><a href="?file=<?php echo $file->id?>"><?php echo $file->name?></a></td>
+    <td><a href="?file=<?php echo $file->id?>"><?php echo $file->name?><?php echo $file->is_dir ? "/" : "" ?></a></td>
 </tr>
 <?php
 endforeach;

@@ -71,8 +71,8 @@ class Git extends GitBase
      */
     function getHistory($branch)
     {
-        if (isset($this->_cache['branch'])) {
-            return $this->_cache['branch'];
+        if (isset($this->_cache[$branch])) {
+            return $this->_cache[$branch];
         }
         if (!isset($this->branch[$branch])) {
             $this->throwException("$branch is not a valid branch");
@@ -88,7 +88,7 @@ class Git extends GitBase
 
             $object_id = isset($commit['parent']) ? $commit['parent'] : false;
         } while (strlen($object_id) > 0);
-        return $this->_cache['branch'] = $history;
+        return $this->_cache[$branch] = $history;
     }    
     // }}} 
 
@@ -153,6 +153,9 @@ class Git extends GitBase
     {
         $obj = $this->getObject($id, $type);
         if ($obj === false) {
+            if ( sha1("blob 0".chr(0)) == $id) {
+                return "";
+            }
             $this->throwException("Object $id doesn't exists");
         }
         switch ($type) {
