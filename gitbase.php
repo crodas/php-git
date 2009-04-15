@@ -147,7 +147,7 @@ abstract class GitBase
         foreach ($files as $file) {
             $name = substr($file, strrpos($file, "/")+1);
             $id   = $this->getFileContents($file, false);
-            if (isset($refes[$name])) {
+            if (isset($oldref[$name])) {
                 continue;
             }
             $ref[$name]    = $id;
@@ -160,7 +160,7 @@ abstract class GitBase
             foreach ($this->refs as $name =>$sha1) {
                 if (strpos($name, $path) === 0) {
                     $id = substr($name, strrpos($name, "/")+1);
-                    if (isset($refes[$id])) {
+                    if (isset($oldref[$id])) {
                         continue;
                     }
                     $oldref[$id] = $id;
