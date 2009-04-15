@@ -12,8 +12,8 @@
  */
 
 
-//define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
-define("GIT_DIR", "/home/crodas/projects/git/.git");
+define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+//define("GIT_DIR", "/home/crodas/projects/git/.git");
 //define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
 
 require "phpgit/git.php";
