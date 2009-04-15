@@ -141,7 +141,7 @@ class Git extends GitBase
      */
     function getTag($id)
     {
-        $obj = $this->getObject($id,$type);
+        $obj = $this->getObject($id, $type);
         if ($type != OBJ_TAG) {
             $this->throwException("Unexpected object type.");
         }
@@ -160,7 +160,7 @@ class Git extends GitBase
      */
     function getFile($id,&$type=null)
     {
-        $obj = $this->getObject($id,$type);
+        $obj = $this->getObject($id, $type);
         return $obj;
         if ($obj === false) {
             if ( sha1("blob 0".chr(0)) == $id) {
