@@ -12,8 +12,9 @@
  */
 
 
-define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+#define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
 #define("GIT_DIR", "/home/crodas/projects/git/.git");
+define("GIT_DIR", "/home/crodas/projects/playground/phpserver/phplibtextcat/.git");
 #define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
 
 require "phpgit/git.php";
@@ -40,17 +41,19 @@ if (isset($_GET['commit'])) {
 } else if (isset($_GET['diff'])) {
     include("phpgit/contrib/diff.php");
     $diff    = $git->getCommitDiff($_GET['diff']);
-    $changes = $diff[0];
+    $changes = $diff[1];
+    var_dump($diff);
     foreach($changes as $change) {
-        $obj1 = $git->getFile($change[0]);
-        $obj2 = $git->getFile($change[1]);
-        $str1 = explode("\n",$obj1);
-        $str2 = explode("\n",$obj2);
+        $obj1 = $git->getFile($change[1]);
+        $obj2 = "";
+        if (isset($change[2])) {
+            $obj2 = $git->getFile($change[2]);
+        }
         $diff = phpdiff($obj1,$obj2);
-        die("<pre>$diff</pre>");
+        $diff = htmlentities($diff);
+        echo ("<h1>{$change[0]}</h1>");
+        echo ("<pre>$diff</pre>");
     }
-    var_dump($changes);
-    die();
 }
 
 if (isset($_GET['tag'])) {

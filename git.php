@@ -78,7 +78,7 @@ class Git extends GitBase
         $history   = array();
         $e         = 0;
         do {   
-            $commit       = $this->getObject($object_id,$type);
+            $commit = $this->getObject($object_id, $type);
             if ($commit == false || $type != OBJ_COMMIT) {
                 $this->throwException("Unexpected datatype");
             }
@@ -123,7 +123,7 @@ class Git extends GitBase
      */
     function getCommit($id)
     {
-        $obj = $this->getObject($id,$type);
+        $obj = $this->getObject($id, $type);
         if ($obj === false || $type != OBJ_COMMIT) {
             $this->throwException("$id is not a valid commit");
         }
@@ -142,9 +142,12 @@ class Git extends GitBase
      */
     function getTag($id)
     {
-        $obj = $this->getObject($id, $type);
+        $obj = $this->getObject($id, $type, OBJ_TAG);
+        if ($obj === false) {
+            $this->throwException("There is not object $id");
+        }
         if ($type != OBJ_TAG) {
-            $this->throwException("Unexpected object type.");
+            $this->throwException("Unexpected ($type) object type.");
         }
         return $obj;
     }
@@ -181,30 +184,13 @@ class Git extends GitBase
     }
     // }}} 
 
-    /// {{{ getCommitDiff
+    // {{{ getCommitDiff
     function getCommitDiff($id)
     {
         $tree  = $this->getCommit($id); 
         $tree1 = $this->getCommit($tree["parent"]);
 
-        $new = $changed = $del = array();
-        
-        $file1 = & $tree1['Tree'];
-        foreach ($tree['Tree'] as $key => $desc) {
-            if ( isset($file1[$key]) ) {
-                if ($file1[$key]->id != $desc->id) {
-                    $changed[] = array($file1[$key]->id, $desc->id);
-                } 
-            } else {
-                    $new[] = $desc->id;
-            }
-        }
-        foreach ($file1 as $key => $desc) {
-            if (!isset($tree['Tree'][$key])) {
-                $del[] = $this->id;
-            }
-        }
-        return array($changed, $new ,$del);
+        return $this->getTreeDiff($tree['tree'], $tree1['tree']);
     } 
     // }}}
 }

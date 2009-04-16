@@ -153,7 +153,7 @@ abstract class GitBase
             $ref[$name]    = $id;
             $oldref[$name] = true;
         }
-        $file  = $this->getFileContents("packed-refs");
+        $file = $this->getFileContents("packed-refs");
         if ($file !== false) {
             $this->refs = $this->simpleParsing($file, -1, ' ', false);
             $path       = "refs/$path";
@@ -244,7 +244,7 @@ abstract class GitBase
             $obj            = $this->simpleParsing($content, 4);
             $obj['comment'] = trim(strstr($content, "\n\n")); 
             if (!isset($obj['object'])) {
-                $this->throwExecption("Internal error, expected object");
+                $this->throwException("Internal error, expected object");
             }
             $commit = $this->getObject($obj['object'], $c_type); 
             if ($c_type != OBJ_COMMIT) {
@@ -727,6 +727,59 @@ abstract class GitBase
             $return[$key] = $findex ? $second : $first;
         }
         return $return;
+    }
+    // }}}
+
+    // {{{ getTreeDiff 
+    function getTreeDiff($tree1,$tree2Id=null,$prefix='')
+    {
+        $tree1 = $this->getObject($tree1);
+        if ($tree2Id == null) {
+            $tree2 = array();
+        } else {
+            $tree2 = $this->getObject($tree2Id);
+        }
+
+        $new = $changed = $del = array();
+        foreach ($tree1 as $key => $desc) {
+            $name = $prefix.$key;
+            if ( isset($tree2[$key]) ) {
+                $file2 = & $tree2[$key];
+                if ($tree2[$key]->id != $desc->id) {
+                    if ($desc->is_dir) {
+                        $diff = $this->getTreeDiff($desc->id, $file2->id, $key.'/');
+
+                        list($c1, $n1, $d1) = $diff;
+
+                        $changed = array_merge($changed, $c1);
+                        $new     = array_merge($new, $n1);
+                        $del     = array_merge($del, $d1);
+                    } else {
+                        $changed[] = array($name, $tree2[$key]->id, $desc->id);
+                    }
+                } 
+            } else {
+                if ($desc->is_dir) {
+                        $diff = $this->getTreeDiff($desc->id,null, $key.'/');
+
+                        list($c1, $n1, $d1) = $diff;
+
+                        $changed = array_merge($changed, $c1);
+                        $new     = array_merge($new, $n1);
+                        $del     = array_merge($del, $d1);
+                } else {
+                    $new[] = array($name, $desc->id);
+                }
+            }
+        }
+        if ($tree2Id != null) { 
+            foreach ($tree2 as $key => $desc) {
+                if (!isset($tree1[$key])) {
+                    $del[] = array($prefix.$key, $desc->id.'/');
+                }
+            }
+        }
+        return array($changed, $new ,$del);
     }
     // }}}
 
