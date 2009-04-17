@@ -12,9 +12,9 @@
  */
 
 
-#define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
 #define("GIT_DIR", "/home/crodas/projects/git/.git");
-define("GIT_DIR", "/home/crodas/projects/playground/phpserver/phplibtextcat/.git");
+#define("GIT_DIR", "/home/crodas/projects/playground/phpserver/phplibtextcat/.git");
 #define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
 
 require "phpgit/git.php";
@@ -42,7 +42,7 @@ if (isset($_GET['commit'])) {
     include("phpgit/contrib/diff.php");
     $diff    = $git->getCommitDiff($_GET['diff']);
     $changes = $diff[0];
-    foreach ($changes[0] as $change) {
+    foreach ($changes as $change) {
         $obj1 = $git->getFile($change[1]);
         $obj2 = "";
         if (isset($change[2])) {
