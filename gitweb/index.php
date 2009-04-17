@@ -148,6 +148,14 @@ endforeach;
 endif;
 ?>
 
+<?php
+if (isset($commit)) {
+    echo "<h2>Commit by {$commit['author']} </h2>";
+    echo "<img src='http://www.gravatar.com/avatar/".md5($commit['email'])."'/>";
+    echo "<pre>{$commit['comment']}</pre>";
+}
+?>
+
 <?php 
 if (isset($file_list)) :
 ?>
