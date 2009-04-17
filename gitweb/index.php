@@ -41,9 +41,8 @@ if (isset($_GET['commit'])) {
 } else if (isset($_GET['diff'])) {
     include("phpgit/contrib/diff.php");
     $diff    = $git->getCommitDiff($_GET['diff']);
-    $changes = $diff[1];
-    var_dump($diff);
-    foreach($changes as $change) {
+    $changes = $diff[0];
+    foreach ($changes[0] as $change) {
         $obj1 = $git->getFile($change[1]);
         $obj2 = "";
         if (isset($change[2])) {

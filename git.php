@@ -142,11 +142,26 @@ class Git extends GitBase
      */
     function getTag($id)
     {
-        $obj = $this->getObject($id, $type, OBJ_TAG);
+        $obj = $this->getObject($id, $type);
         if ($obj === false) {
             $this->throwException("There is not object $id");
         }
-        if ($type != OBJ_TAG) {
+        switch ($type) {
+        case OBJ_TAG:
+            break;
+        case OBJ_COMMIT:
+            /* A tag can be a commit, so simulate it */
+            $nobj = array(
+                "object"  => $id,
+                "type"    => "commit",
+                "tag"     => "",
+                "tagger"  => $obj["committer"],
+                "comment" => $obj["comment"],
+                "Tree"    => $this->getObject($obj['tree'])
+            );
+            $obj  = $nobj;
+            break;
+        default:
             $this->throwException("Unexpected ($type) object type.");
         }
         return $obj;
@@ -185,6 +200,14 @@ class Git extends GitBase
     // }}} 
 
     // {{{ getCommitDiff
+    /**
+     *  Get a diff form the $id commit and the
+     *  previous commit.
+     *
+     *  @param string $id Commit id.
+     *
+     *  @return array Array with changes
+     */
     function getCommitDiff($id)
     {
         $tree  = $this->getCommit($id); 
@@ -193,6 +216,7 @@ class Git extends GitBase
         return $this->getTreeDiff($tree['tree'], $tree1['tree']);
     } 
     // }}}
+
 }
 
 /*

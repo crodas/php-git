@@ -731,6 +731,16 @@ abstract class GitBase
     // }}}
 
     // {{{ getTreeDiff 
+    /**
+     *  Get diff between two directories tree. A directory tree can
+     *  be a commit or two directories.
+     *
+     *  @param string $tree1   Tree Id.
+     *  @param string $tree2Id Tree Id.
+     *  @param string $prefix  Directory prefix, to append to the name.
+     *
+     *  @return array Diff.
+     */
     function getTreeDiff($tree1,$tree2Id=null,$prefix='')
     {
         $tree1 = $this->getObject($tree1);
@@ -760,7 +770,7 @@ abstract class GitBase
                 } 
             } else {
                 if ($desc->is_dir) {
-                        $diff = $this->getTreeDiff($desc->id,null, $key.'/');
+                        $diff = $this->getTreeDiff($desc->id, null, $key.'/');
 
                         list($c1, $n1, $d1) = $diff;
 
