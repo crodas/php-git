@@ -38,7 +38,7 @@ class Git extends GitBase
      *
      *  @return null
      */
-    function __construct($path='')
+    final function __construct($path='')
     {
         if ($path=='') {
             return;
@@ -68,7 +68,7 @@ class Git extends GitBase
      *
      *  @return mixed Array with commits history or exception
      */
-    function getHistory($branch,$limit=1)
+    function getHistory($branch,$limit=10)
     {
         if ($this->branch[$branch] === false) {
             $this->throwException("$branch is not a valid branch");
