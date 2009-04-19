@@ -196,25 +196,30 @@ abstract class GitBase
         if (($content = $this->getFileContents("objects/$name")) !== false) {
             /* the object is in loose format, less work for us */
             $content = gzinflate(substr($content, 2));
-            if (strpos($content, chr(0)) !== false) {
+            if (($i=strpos($content, chr(0))) !== false) {
                 list($type, $content) = explode(chr(0), $content, 2);
-                list($type, $size)    = explode(' ', $type);
-                switch ($type) {
-                case 'blob':
-                    $type = OBJ_BLOB;
-                    break;
-                case 'tree':
-                    $type = OBJ_TREE;
-                    break;
-                case 'commit':
-                    $type = OBJ_COMMIT;
-                    break;
-                case 'tag':
-                    $type = OBJ_TAG;
-                    break;
-                default:
-                    $this->throwException("Unknow object type $type");
-                }
+            } else {
+                $type    = $content;
+                $content = "";
+            }
+            list($type, $size) = explode(' ', $type);
+            switch ($type) {
+            case 'blob':
+                $type = OBJ_BLOB;
+                break;
+            case 'tree':
+                $type = OBJ_TREE;
+                break;
+            case 'commit':
+                $type = OBJ_COMMIT;
+                break;
+            case 'tag':
+                $type = OBJ_TAG;
+                break;
+            default:
+                $this->throwException("Unknow object type $type");
+            }
+            if ($size != 0) {
                 $content = substr($content, 0, $size);
             }
         } else {
