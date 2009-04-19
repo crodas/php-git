@@ -95,6 +95,7 @@ abstract class Git_Http_Base extends Git
             if (!$file->is_dir) {
                 $content = $this->getObject($file->id);
                 file_put_contents($prefix."/{$file->name}", $content);
+                chmod($prefix."/{$file->name}", $file->perm);
             } else {
                 $dir = "$prefix/{$file->name}";
                 mkdir($dir);
@@ -241,7 +242,6 @@ final class Git_Http_Clone extends Git_Http_Base
 $clone = new Git_Http_Clone();
 //$clone->setRepoURL("http://github.com/crodas/phplibtextcat.git");
 $clone->setRepoURL("http://localhost/wp/phptc.git");
-$clone->setRepoURL("http://git.ischo.com/libs3.git");
 $clone->setRepoPath("tmp/");
 $clone->doClone();
 

@@ -317,11 +317,11 @@ abstract class GitBase
 
             list($mode, $name) = explode(' ', substr($data, $i, $pos-$i), 2);
 
-            $mode         = intval($mode, 8);
             $node         = new stdClass;
             $node->id     = $this->sha1ToHex(substr($data, $pos+1, 20));
             $node->name   = $name;
-            $node->is_dir = !!($mode & 040000); 
+            $node->is_dir = $mode[0] == 4; 
+            $node->perm   = intval(substr($mode, -3), 8);
             $i            = $pos + 21;
 
             $return[$node->name] = $node;
