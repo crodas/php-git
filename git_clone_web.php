@@ -1,7 +1,128 @@
 <?php
 require dirname(__FILE__)."/git.php";
 
-abstract class Git_Http_Base extends Git
+define("CE_NAMEMASK", 0x0fff);
+define("CE_STAGEMASK", 0x3000);
+define("CE_EXTENDED", 0x4000);
+define("CE_VALID", 0x8000);
+define("CE_STAGESHIFT", 12);
+
+abstract class GitCheckout extends GitBase
+{
+    final private function _checkoutTree($id, $prefix,&$files)
+    {
+        $tree = $this->getObject($id);
+
+        foreach ($tree as $file) {
+            if (!$file->is_dir) {
+                $content          = $this->getObject($file->id);
+                $files[$file->id] = $prefix.$file->name;
+
+                file_put_contents($prefix.$file->name, $content);
+                chmod($prefix.$file->name, $file->perm);
+                echo "$prefix{$file->name}\n";
+            } else {
+                $dir = "$prefix{$file->name}/";
+                @mkdir($dir);
+                $this->_checkoutTree($file->id, $dir, $files);
+            }
+        }
+    }
+
+    function checkout($dir, $commit)
+    {
+        //var_dump($this->getIndexInfo(".git/index"));
+        $prevdir = getcwd();
+
+        chdir($dir) or $this->throwException("Imposible to chdir");;
+        
+        $commit = $this->getObject($commit, $type);
+        if ($type != OBJ_COMMIT) {
+            return;
+        }
+
+        $this->_checkoutTree($commit['tree'], '' , $files);
+
+        $index  = "DIRC";
+        $index .= pack("N*", 2, count($files));
+
+        foreach ($files as $id => $file) {
+            $stat  = stat($file);
+            $finfo = pack(
+                    "N*", $stat['ctime'], 0, $stat['mtime'],
+                    0, $stat['dev'], $stat['ino'], $stat['mode'],
+                    $stat['uid'], $stat['gid'], $stat['size']
+                );
+            $finfo.= $this->hexToSha1($id);
+            $finfo.= pack("n", strlen($file) | (0 << 12) );
+            $finfo.= $file.chr(0);
+            echo "$file \t\t\t $id (".(strlen($finfo) % 8).")\n";
+            while (strlen($finfo) % 8 != 0) {
+                $finfo .= chr(0);
+            }
+            $index .= $finfo;
+        }
+
+        $index .= $this->hexToSha1(sha1($index));
+        file_put_contents(".git/index", $index);
+        chdir($prevdir);
+    }
+
+    function getIndexInfo($filename)
+    {
+        $text = file_get_contents($filename);
+        if ($this->sha1ToHex(substr($text, -20)) != sha1(substr($text, 0,strlen($text)-20))) {
+            $this->throwException("Index file corrupt");
+        }
+        if (substr($text,0,4) !== "DIRC") {
+            $this->throwException("$filename is not a valid index file");
+        }
+        $info     = unpack("N*",substr($text,4,8));
+        $version  = $info[1];
+        $nrofiles = $info[2];
+
+        if ($version != 2 && $version != 3) {
+            return false;
+        }
+
+        $return = array();
+        $offset = 12;
+        $null   = chr(0);
+        for ($i=0; $i < $nrofiles; $i++) {
+            $start     = $offset;
+            $info      = unpack("N*", substr($text, $offset,40));
+            $offset   += 40;
+            $sha1      = $this->sha1ToHex(substr($text, $offset,20));
+            $offset   += 20;
+            $flags     = unpack("n*", substr($text, $offset,4));
+            $offset   += 2;
+            if ($flags[1] & CE_EXTENDED) {
+                $offset += 2;
+            }
+            $end       = strpos($text, $null, $offset);
+            $file_name = substr($text, $offset, $end - $offset);
+            $offset   += strlen($file_name)+1;
+            $return[]  = array(
+                "ctime"    => $info[1],
+                "mtime"    => $info[3],
+                "idev"     => $info[5],
+                "inode"    => $info[6],
+                "mode"     => $info[7],
+                "uid"      => $info[8],
+                "gid"      => $info[9],
+                "size"     => $info[10],
+                "sha1"     => $sha1,
+                "flags"    => $flags,
+                "filename" => $file_name
+            );
+            while( ($offset - $start) % 8 != 0 && $offset++);
+        }
+        while ($text[$offset] == $null && $offset++);
+        return $return;
+    }
+}
+
+abstract class GitHttpBase extends GitCheckout
 {
     private $_repo;
     private $_bare;
@@ -54,13 +175,28 @@ abstract class Git_Http_Base extends Git
 
         /* fetch head file */
         $head = $this->getRemoteFile("HEAD");
+        $this->getRemoteFile("description");
 
         /* get information file */
         $refs = $this->getRemoteFile("info/refs");
         $info = $this->simpleParsing($refs, -1, "\t", false);
         /* unpack the info and store it as local file */
+        $rpacked = false;
         foreach ($info as $file => $id) {
-            $this->saveFile($file, $id);
+            $parts = explode("/", $file);
+            if ($parts[1] == "remotes") {
+                unset($info[$file]);
+                continue;
+            }
+            try {
+                $id          = $this->getRemoteFile($file);
+                $info[$file] = trim($id);
+            } catch (Exception $e) {
+                if (!$rpacked) {
+                    $this->getRemoteFile("packed-refs");
+                    $rpacked = true;
+                }
+            }
         }
         /* open actual repo */
         $this->setRepo($base);
@@ -68,7 +204,7 @@ abstract class Git_Http_Base extends Git
         /* iterate over what we got and get all the commits */
         foreach ($info as $branch => $id) {
             try {
-                echo "Getting branch $branch\n";
+                echo "Getting branch [$id] $branch\n";
                 $this->fetchCommit($id);
             } catch (Exception $e) {
             }
@@ -78,31 +214,26 @@ abstract class Git_Http_Base extends Git
         if (!$this->_bare) {
             $head = $this->simpleParsing($head, 1, ' ', false);
             $dir  = substr($base, 0, strrpos($base, '/'));
-            $this->saveToWorkingDir($info[key($head)], $dir);
-        }
-    }
-
-    final function saveToWorkingDir($id,$prefix)
-    {
-        $base   = $this->_repo;
-        $commit = $this->getObject($id, $type);
-        if ($type != OBJ_COMMIT) {
-            return;
+            $this->checkout($dir, $info[key($head)]);
         }
 
-        $tree = $this->getObject($commit['tree']);
-        foreach ($tree as $file) {
-            if (!$file->is_dir) {
-                $content = $this->getObject($file->id);
-                file_put_contents($prefix."/{$file->name}", $content);
-                chmod($prefix."/{$file->name}", $file->perm);
-            } else {
-                $dir = "$prefix/{$file->name}";
-                mkdir($dir);
-                $this->saveToWorkingDir($file->id, $dir);
+        $config   = array();
+        $config[] = "[core]";
+        $config[] = "repositoryformatversion = 0";
+        $config[] = "filemode = true";
+        $config[] = "bare = ".($this->_bare ? "true" : "false");
+        $config[] = "logallrefupdates = true";
+        foreach ($info as $file => $id) {
+            $parts = explode("/", $file);
+            if ($parts[1] != "heads") {
+                continue;
             }
+            $config[] = "[branch \"{$parts[2]}\"]";
+            $config[] = "merge = $file";
         }
+        file_put_contents("tmp/.git/config",implode("\n", $config));
     }
+
 
     final function fetchObject($id,&$type)
     {
@@ -165,7 +296,7 @@ abstract class Git_Http_Base extends Git
         return $content;
     }
 
-    final function saveFile($file,$content)
+    final function saveFile($file, $content)
     {
         $file = $this->_repo."/".$file;
         $this->_mkdir(dirname($file));
@@ -180,7 +311,7 @@ abstract class Git_Http_Base extends Git
 
 require "contrib/http.php";
 
-final class Git_Http_Clone extends Git_Http_Base
+final class GitHttpClone extends GitHttpBase
 {
     private $_http;
 
@@ -216,7 +347,7 @@ final class Git_Http_Clone extends Git_Http_Base
         }
         if ($http->response_status != 200) {
             $http->Close();
-            $error = "Page not found";
+            $error = "Page not found $url";
             $this->throwException($error);
         }
 
@@ -239,8 +370,8 @@ final class Git_Http_Clone extends Git_Http_Base
     }
 }
 
-$clone = new Git_Http_Clone();
-//$clone->setRepoURL("http://github.com/crodas/phplibtextcat.git");
+$clone = new GitHttpClone();
+$clone->setRepoURL("http://github.com/crodas/phplibtextcat.git");
 $clone->setRepoURL("http://localhost/wp/phptc.git");
 $clone->setRepoPath("tmp/");
 $clone->doClone();

@@ -284,7 +284,7 @@ abstract class GitBase
         $commit            = $this->simpleParsing($object_text, 4);
         $commit['comment'] = trim(strstr($object_text, "\n\n")); 
 
-        $rexp = "/(.*) <?([a-z0-9\+\_\.\-]+@[a-z0-9\_\.\-]+)?> +([0-9]+) +(\+|\-[0-9]+)/i";
+        $rexp = "/(.*) <?([a-z0-9\+\_\.\-]+@[a-z0-9\_\.\-]+)?\> +([0-9]+) +(\+|\-[0-9]+)/i";
         preg_match($rexp, $commit["author"], $data);
         if (count($data) == 5) {
             $data[3]         += (($data[4] / 100) * 3600);
