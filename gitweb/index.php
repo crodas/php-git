@@ -12,11 +12,11 @@
  */
 
 
-#define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
+define("GIT_DIR", "/home/crodas/projects/playground/phpgit/.git");
 #define("GIT_DIR", "/home/crodas/projects/git/.git");
 #define("GIT_DIR", "/home/crodas/projects/playground/phpserver/phplibtextcat/.git");
 #define("GIT_DIR","/home/crodas/projects/bigfs/.git/");
-define("GIT_DIR", "/var/www/html/wp/phptc.git");
+#define("GIT_DIR", "/var/www/html/wp/phptc.git");
 
 require "phpgit/git.php";
 

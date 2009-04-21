@@ -15,7 +15,21 @@
  *  @link     http://cesar.la/git
  */
 
-require dirname(__FILE__)."/gitbase.php";
+
+/**
+ *  __autoload
+ *
+ *  @param string $path Class to load
+ *
+ *  @return nothing
+ */
+function __autoload($path)
+{
+    $path = strtolower($path);
+    if (substr($path, 0, 3) == "git") {
+        require_once "{$path}.php";
+    }
+}
 
 /**
  *  Git Class
