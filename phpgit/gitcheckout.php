@@ -61,7 +61,7 @@ abstract class GitCheckout extends GitBase
                 chmod($prefix.$file->name, $file->perm);
             } else {
                 $dir = "$prefix{$file->name}/";
-                mkdir($dir);
+                @mkdir($dir);
                 $this->_checkoutTree($file->id, $dir, $files);
             }
         }
