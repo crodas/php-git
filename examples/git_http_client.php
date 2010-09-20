@@ -16,6 +16,7 @@
  */
 
 require "../phpgit/git.php";
+require "../phpgit/http.php";
 
 /**
  *  GitHttpClone
@@ -106,13 +107,9 @@ final class GitHttpClone extends GitClone
     }
 }
 
-/* how to use it, cloning a remote git repo (of course my repo) */
-(require "http.php") or die("Please download http.php from 
-http://www.phpclasses.org/browse/package/3.html");
-
 $phplibtextcat = new GitHttpClone;
-$phplibtextcat->setRepoURL("http://github.com/crodas/phplibtextcat.git");
-$phplibtextcat->setRepoPath("libtextcat");
+$phplibtextcat->setRepoURL("http://github.com/crodas/php-git.git");
+$phplibtextcat->setRepoPath("php-git");
 try {
     $phplibtextcat->doClone();
 } catch(Exception $e) {
