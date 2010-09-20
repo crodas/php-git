@@ -548,7 +548,7 @@ abstract class GitBase
     {
         $out = "";
         do {
-            $cstr         = fread($fp, $size>4096 ? $size : 4096);
+            $cstr         = fread($fp, $size>131072 ? $size : 131072);
             $uncompressed = gzuncompress($cstr);
             if ($uncompressed === false) {
 
