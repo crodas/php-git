@@ -23,7 +23,7 @@ final class GitHttpClone extends GitClone
      *  Initialize the http module.
      *
      *  @return nothing
-     */ 
+     */
     protected function initMod()
     {
         $http = & $this->_http;
@@ -32,6 +32,7 @@ final class GitHttpClone extends GitClone
         $http->timeout     = 30;
         $http->user_agent  = "PHPGit/1.0 (http://cesar.la/projects/phpgit)";
         $http->prefer_curl = 0;
+        $http->follow_redirect = 1;
     }
 
     /**
